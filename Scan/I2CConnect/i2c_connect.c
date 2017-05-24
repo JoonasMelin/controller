@@ -30,6 +30,13 @@
 #include <i2c_connect.h>
 
 
+enum I2C_Status   {I2C_WAITING,
+                   I2C_SENDING,
+                   I2C_RECEIVING,
+                   I2C_ADDR_NAK,
+                   I2C_DATA_NAK,
+                   I2C_ARB_LOST,
+                   I2C_BUF_OVF};
 
 
 // Before sending the sequence, I2C_TxBuffer_CurLen is assigned and as each byte is sent, it is decremented
@@ -573,6 +580,131 @@ uint8_t I2C_GetRxBuffer(uint8_t sequence){
   printHex(I2C_RxBuffer.buffer[I2C_RxBuffer.tail]);
   print(NL);
   return I2C_RxBuffer.buffer[sequence];
+}
+
+void i2c_t3::sendRequest_(struct i2cStruct* i2c, uint8_t bus, uint8_t addr, size_t len, i2c_stop sendStop, uint32_t timeout)
+{
+    uint8_t status, data, chkTimeout=0, forceImm=0;
+
+    // exit immediately if request for 0 bytes or request too large
+    if(len == 0) return;
+    if(len > I2C_RX_BUFFER_LENGTH) { i2c->currentStatus=I2C_BUF_OVF; return; }
+
+    i2c->reqCount = len; // store request length
+    i2c->rxBufferIndex = 0; // reset buffer
+    i2c->rxBufferLength = 0;
+    timeout = (timeout == 0) ? i2c->defTimeout : timeout;
+
+    // clear the status flags
+    #if defined(__MKL26Z64__) || defined(__MK64FX512__) || defined(__MK66FX1M0__) // LC/3.5/3.6
+        *(i2c->FLT) |= I2C_FLT_STOPF | I2C_FLT_STARTF;  // clear STOP/START intr
+        *(i2c->FLT) &= ~I2C_FLT_SSIE;                   // disable STOP/START intr (not used in Master mode)
+    #endif
+    *(i2c->S) = I2C_S_IICIF | I2C_S_ARBL; // clear intr, arbl
+
+    // try to take control of the bus
+    if(!acquireBus_(i2c, bus, timeout, forceImm)) return;
+
+    //
+    // Immediate mode - blocking
+    //
+    if(i2c->opMode == I2C_OP_MODE_IMM || forceImm)
+    {
+        elapsedMicros deltaT;
+        i2c->currentStatus = I2C_SEND_ADDR;
+        i2c->currentStop = sendStop;
+
+        // Send target address
+        *(i2c->D) = (addr << 1) | 1; // address + READ
+        i2c_wait_(i2c);
+        status = *(i2c->S);
+
+        // check arbitration
+        if(status & I2C_S_ARBL)
+        {
+            i2c->currentStatus = I2C_ARB_LOST;
+            *(i2c->S) = I2C_S_ARBL; // clear arbl flag
+            // TODO: this is clearly not right, after ARBL it should drop into IMM slave mode if IAAS=1
+            //       Right now Rx message would be ignored regardless of IAAS
+            *(i2c->C1) = I2C_C1_IICEN; // change to Rx mode, intr disabled (does this send STOP if ARBL flagged?)
+            return;
+        }
+        // check if slave ACK'd
+        else if(status & I2C_S_RXAK)
+        {
+            i2c->currentStatus = I2C_ADDR_NAK; // NAK on Addr
+            *(i2c->C1) = I2C_C1_IICEN; // send STOP, change to Rx mode, intr disabled
+            return;
+        }
+        else
+        {
+            // Slave addr ACK, change to Rx mode
+            i2c->currentStatus = I2C_RECEIVING;
+            if(i2c->reqCount == 1)
+                *(i2c->C1) = I2C_C1_IICEN | I2C_C1_MST | I2C_C1_TXAK; // no STOP, Rx, NAK on recv
+            else
+                *(i2c->C1) = I2C_C1_IICEN | I2C_C1_MST; // no STOP, change to Rx
+            data = *(i2c->D); // dummy read
+
+            // Master receive loop
+            while(i2c->rxBufferLength < i2c->reqCount && i2c->currentStatus == I2C_RECEIVING)
+            {
+                i2c_wait_(i2c);
+                chkTimeout = (timeout != 0 && deltaT >= timeout);
+                // check if 2nd to last byte or timeout
+                if((i2c->rxBufferLength+2) == i2c->reqCount || (chkTimeout && !i2c->timeoutRxNAK))
+                {
+                    *(i2c->C1) = I2C_C1_IICEN | I2C_C1_MST | I2C_C1_TXAK; // no STOP, Rx, NAK on recv
+                }
+                // if last byte or timeout send STOP
+                if((i2c->rxBufferLength+1) >= i2c->reqCount || (chkTimeout && i2c->timeoutRxNAK))
+                {
+                    i2c->timeoutRxNAK = 0; // clear flag
+                    // change to Tx mode
+                    *(i2c->C1) = I2C_C1_IICEN | I2C_C1_MST | I2C_C1_TX;
+                    // grab last data
+                    data = *(i2c->D);
+                    i2c->rxBuffer[i2c->rxBufferLength++] = data;
+                    if(chkTimeout)
+                        i2c->currentStatus = I2C_TIMEOUT; // Rx incomplete, mark as timeout
+                    else
+                        i2c->currentStatus = I2C_WAITING; // Rx complete, change to waiting state
+                    if(i2c->currentStop == I2C_STOP) // NAK then STOP
+                    {
+                        delayMicroseconds(1); // empirical patch, lets things settle before issuing STOP
+                        *(i2c->C1) = I2C_C1_IICEN; // send STOP, change to Rx mode, intr disabled
+                    }
+                    // else NAK no STOP
+                }
+                else
+                {
+                    // grab next data, not last byte, will ACK
+                    data = *(i2c->D);
+                    i2c->rxBuffer[i2c->rxBufferLength++] = data;
+                }
+                if(chkTimeout) i2c->timeoutRxNAK = 1; // set flag to indicate NAK sent
+            }
+        }
+    }
+    //
+    // ISR/DMA mode - non-blocking
+    //
+    else if(i2c->opMode == I2C_OP_MODE_ISR || i2c->opMode == I2C_OP_MODE_DMA)
+    {
+        // send 1st data and enable interrupts
+        i2c->currentStatus = I2C_SEND_ADDR;
+        i2c->currentStop = sendStop;
+        if(i2c->opMode == I2C_OP_MODE_DMA && i2c->reqCount >= 5) // limit transfers less than 5 bytes to ISR method
+        {
+            // init DMA, let the hack begin
+            i2c->activeDMA = I2C_DMA_ADDR;
+            i2c->DMA->source(*(i2c->D));
+            i2c->DMA->destinationBuffer(&i2c->rxBuffer[0],i2c->reqCount-1); // DMA gets all except last byte
+        }
+        // start ISR
+        *(i2c->C1) = I2C_C1_IICEN | I2C_C1_IICIE | I2C_C1_MST | I2C_C1_TX; // enable intr
+        *(i2c->D) = (addr << 1) | 1; // address + READ
+    }
 }
 
 // ----- CLI Command Functions -----
