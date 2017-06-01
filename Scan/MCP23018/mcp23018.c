@@ -183,7 +183,7 @@ void MCP23018::SetPortB_bits(uint8_t _data, uint8_t _mask)
 
 void Mcp_setup()
 {
-  i2c_setup();
+    i2c_setup();
     //LED_setup();
     //Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
     /*pinMode(LED_BUILTIN,OUTPUT);    // LED
@@ -206,51 +206,77 @@ void Mcp_read_pins()
 {
   delayMicroseconds( 10000 );
   loopNo++;
-  uint16_t addr = (0x20);
+  uint16_t addr = (0x20 << 1);
   uint16_t reg = 0x00;
   uint16_t val = 0xFF;
-  uint16_t writeData[] = { addr, reg, val };
-  uint16_t bus[16];
+  uint16_t configInput[] = { addr, 0x00, val };
+  uint16_t configInput2[] = { addr, 0x12, val };
+  uint16_t readDataSeq[] = { (addr | 0x1), I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ, I2C_READ};
+
+  uint16_t readData[] = { (addr), 0x12, I2C_RESTART, (addr | 0x1), I2C_READ, I2C_READ, I2C_READ, I2C_READ};
+
+  uint16_t writeLedOn[] = { addr, 0x13, 0xFF };
+  uint16_t writeLedOff[] = { addr, 0x13, 0x00 };
+  uint16_t configLed[] = { addr, 0x01, 0x00 };
+  uint8_t rcv[] = {1, 1, 1, 1, 1, 1 , 1, 1, 1, 1, 1, 1, 1};
 
   // Setup page
 
-  // Write register
-  dbug_msg("Sending.. ");
-  while ( i2c_send( bus, writeData, sizeof( writeData ) / 2 ) == -1 )
-    delayMicroseconds( 1000 );
-  dbug_msg("Send OK ");
-
-  /*if(loopNo > 400){
-
-    uint8_t writeData[] = {(0x20 << 1), 0x00, 0xFF};
-
-    I2C_Send(writeData, 3, 0);
-    delay(10);
 
 
-    setReceiving(1);
-    uint8_t writeDataRq[] = {((0x20 << 1) | 1), 0x13};
-    I2C_Send(writeDataRq, 2, 1);
 
-    uint8_t seq = 0;
-    uint8_t rxBuffer = I2C_GetRxBuffer(seq);
-    print(NL);
-    dbug_msg("Rx buffer: ");
-    printHex(rxBuffer);
-    print("|");
-    printHex(I2C_GetRxBuffer(1));
-    print("|");
-    printHex(I2C_GetRxBuffer(2));
-    print(NL);
-    setReceiving(0);*/
+  if(loopNo > 400){
+      // Write register
+      dbug_msg("Sending.. \n");
+      while(i2c_send( 0, configInput, 3) == -1){
+        delayMicroseconds( 100 );
+      }
+      /*while(i2c_send( 0, configInput2, 3) == -1){
+        delayMicroseconds( 100 );
+      }*/
+      /*while(i2c_send( 0, configLed, 3) == -1){
+          //dbug_msg("Write Channel is busy\n");
+          delayMicroseconds( 100 );
+        }
+      delayMicroseconds( 5000 );
 
+      while(i2c_send( 0, writeData, 3) == -1){
+          //dbug_msg("Write Channel is busy\n");
+          delayMicroseconds( 100 );
+        }
 
-  //I2C_clearTxBuffer();
+      delayMicroseconds( 5000 );
+
+      while(i2c_send( 0, writeLedOn, 3) == -1){
+          //dbug_msg("Write Channel is busy\n");
+          delayMicroseconds( 100 );
+        }
+      delayMicroseconds( 5000 );
+
+      while(i2c_send( 0, writeLedOff, 3) == -1){
+          //dbug_msg("Write Channel is busy\n");
+          delayMicroseconds( 100 );
+        }*/
+
+      delayMicroseconds( 5000 );
+      dbug_msg("Reading data \n");
+      while(i2c_read(0, readDataSeq, 3, &rcv) == -1){
+
+          dbug_msg("Read Channel is busy\n");
+          delayMicroseconds( 500 );
+        }
+
+      //printHex(GetDataFromBus());
+      print("|");
+      for(int loop = 0; loop < 2; loop++){
+        printHex(rcv[loop]);
+        print("|");
+      }
+      print(NL);
+
+      delayMicroseconds( 10);
+
 }
-
-void loop()
-{
-
 }
 
 
