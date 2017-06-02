@@ -204,7 +204,7 @@ void Mcp_setup()
 
 void Mcp_read_pins()
 {
-  delayMicroseconds( 10000 );
+  delayMicroseconds( 10 );
   loopNo++;
   uint16_t addr = (0x20 << 1);
   uint16_t reg = 0x00;
@@ -225,12 +225,12 @@ void Mcp_read_pins()
 
 
 
-  if(loopNo > 400){
+  if(loopNo > 800){
       // Write register
       dbug_msg("Sending.. \n");
-      while(i2c_send( 0, configInput, 3) == -1){
-        delayMicroseconds( 100 );
-      }
+      //while(i2c_send( 0, configInput, 3) == -1){
+      //  delayMicroseconds( 100 );
+      //}
       /*while(i2c_send( 0, configInput2, 3) == -1){
         delayMicroseconds( 100 );
       }*/
@@ -258,12 +258,11 @@ void Mcp_read_pins()
           delayMicroseconds( 100 );
         }*/
 
-      delayMicroseconds( 5000 );
+      delayMicroseconds( 100 );
       dbug_msg("Reading data \n");
-      while(i2c_read(0, readDataSeq, 3, &rcv) == -1){
-
+      while(i2c_read(0, readDataSeq, 4, &rcv) == -1){
           dbug_msg("Read Channel is busy\n");
-          delayMicroseconds( 500 );
+          delayMicroseconds( 10 );
         }
 
       //printHex(GetDataFromBus());
@@ -277,6 +276,9 @@ void Mcp_read_pins()
       delayMicroseconds( 10);
 
 }
+  else{
+      delayMicroseconds(1000);
+    }
 }
 
 

@@ -223,7 +223,7 @@ void i2c_setup()
 
     // FIXME Forcing settings
     *I2C_F = 0x85;
-    *I2C_FLT = 0x06;
+    *I2C_FLT = 0x04;
     *I2C_C1 = 0x80;
     *I2C_C2 = 0x20;
 
@@ -451,7 +451,7 @@ void i2c_isr( uint8_t ch )
     if ( status & I2C_S_RXAK )
     {
       //warn_print("NACK Received");
-      goto i2c_isr_error;
+      //goto i2c_isr_error;
     }
 
     // check next thing in our sequence
@@ -486,7 +486,8 @@ void i2c_isr( uint8_t ch )
         }
 
         // Switch to RX mode.
-        *I2C_C1 &= ~I2C_C1_TX;
+        //*I2C_C1 &= ~I2C_C1_TX; // OLD
+        *I2C_C1 = I2C_C1_IICEN | I2C_C1_IICIE | I2C_C1_MST | I2C_C1_TXAK;
 
         // do not ACK the final read
         if ( channel->reads_ahead == 1 )
@@ -502,8 +503,10 @@ void i2c_isr( uint8_t ch )
         // Dummy read comes first, note that this is not valid data!
         // This only triggers a read, actual data will come in the next interrupt call and overwrite this.
         // This is why we do not increment the received_data pointer.
+        dbug_msg("Dummy read!");
         *channel->received_data = *I2C_D;
         channel->reads_ahead--;
+        *I2C_C1 &= ~( I2C_C1_TXAK ); //TODO
       }
       // Not a restart, not a read, must be a write.
       else
