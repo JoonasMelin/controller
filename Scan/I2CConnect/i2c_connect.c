@@ -382,8 +382,7 @@ void i2c_isr( uint8_t ch )
   // Arbitration problem
   if ( status & I2C_S_ARBL )
   {
-    warn_msg("Arbitration error. Bus: ");
-    printHex( ch );
+    warn_msg("Arbitration error");
     print(NL);
 
     *I2C_S |= I2C_S_ARBL;
@@ -487,7 +486,7 @@ void i2c_isr( uint8_t ch )
 
         // Switch to RX mode.
         //*I2C_C1 &= ~I2C_C1_TX; // OLD
-        *I2C_C1 = I2C_C1_IICEN | I2C_C1_IICIE | I2C_C1_MST | I2C_C1_TXAK;
+        *I2C_C1 = I2C_C1_MST | I2C_C1_TXAK;
 
         // do not ACK the final read
         if ( channel->reads_ahead == 1 )
@@ -497,7 +496,8 @@ void i2c_isr( uint8_t ch )
         // ACK all but the final read
         else
         {
-          *I2C_C1 &= ~( I2C_C1_TXAK );
+          //*I2C_C1 &= ~( I2C_C1_TXAK ); // OLD
+          *I2C_C1 = I2C_C1_MST | I2C_C1_TXAK;
         }
 
         // Dummy read comes first, note that this is not valid data!
@@ -536,7 +536,7 @@ i2c_isr_stop:
 
 i2c_isr_error:
   // Generate STOP and disable further interrupts.
-  *I2C_C1 &= ~( I2C_C1_MST | I2C_C1_IICIE );
+  *I2C_C1 &= ~( I2C_C1_MST | I2C_C1_IICIE | I2C_C1_TX );
   channel->status = I2C_ERROR;
   return;
 }
