@@ -218,7 +218,7 @@ void Mcp_read_pins()
   uint16_t writeLedOn[] = { addr, 0x13, 0xFF };
   uint16_t writeLedOff[] = { addr, 0x13, 0x00 };
   uint16_t configLed[] = { addr, 0x01, 0x00 };
-  uint8_t rcv[] = {2, 2, 1, 1, 1, 1 , 1, 1, 1, 1, 1, 1, 1};
+  uint8_t rcv[] = {2, 3, 4, 5, 1, 1 , 1, 1, 1, 1, 1, 1, 1};
   uint8_t rcv_byte = 2;
 
   // Setup page
@@ -261,10 +261,10 @@ void Mcp_read_pins()
 
       delayMicroseconds( 100 );
       dbug_msg("Reading data \n");
-      while(i2c_read(0, readDataSeq, 4, &rcv) == -1){
-          get_last();
+      while(i2c_read(0, readData, 6, &rcv) == -1){
+          //get_last();
           //dbug_msg("Read Channel is busy\n");
-          //delayMicroseconds( 100000 );
+          delayMicroseconds( 10 );
           //i2c_reset();
           break;
         }
