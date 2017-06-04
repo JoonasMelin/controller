@@ -318,15 +318,6 @@ uint8_t i2c_get_read_valid(uint8_t ch){
 // These are here for readability and correspond to bit 0 of the address byte.
 #define I2C_WRITING 0
 #define I2C_READING 1
-uint16_t GetDataFromBus(){
-  I2C_Channel *channel = &( i2c_channels[0] );
-  dbug_msg("Got data: ");
-  printHex(channel->received_data[0]);
-  print("|");
-  printHex(channel->received_data[1]);
-  print(NL);
-  return channel->received_data[0];
-}
 
 int32_t i2c_send_sequence(
   uint8_t ch,
@@ -351,7 +342,7 @@ int32_t i2c_send_sequence(
   }
 
   // Debug
-  dbug_msg("Sending I2C: ");
+  /*dbug_msg("Sending I2C: ");
   for ( uint8_t c = 0; c < sequence_length; c++ )
   {
       if(sequence[c] == I2C_READ) print("Din");
@@ -359,7 +350,7 @@ int32_t i2c_send_sequence(
       else printHex( sequence[c] );
       print(" ");
   }
-  print(NL);
+  print(NL);*/
 
 
   channel->sequence = sequence;
@@ -544,10 +535,7 @@ void i2c_isr( uint8_t ch )
         // This only triggers a read, actual data will come in the next interrupt call and overwrite this.
         // This is why we do not increment the received_data pointer.
         *channel->received_data = *I2C_D;
-        //last_data = *I2C_D;
         channel->reads_ahead--;
-
-        channel->read_valid = I2C_READ_INVALID;
       }
       // Not a restart, not a read, must be a write.
       else
