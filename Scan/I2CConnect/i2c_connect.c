@@ -278,6 +278,16 @@ uint8_t i2c_any_busy()
   return 0;
 }
 
+void i2c_cleanup(uint8_t ch){
+  volatile I2C_Channel *channel = &( i2c_channels[ch] );
+  volatile uint8_t *I2C_C1  = (uint8_t*)(&I2C0_C1) + i2c_offset[ch];
+
+  // Generate STOP and disable further interrupts.
+  *I2C_C1 &= ~( I2C_C1_MST | I2C_C1_IICIE );
+  channel->status = I2C_AVAILABLE;
+  return;
+}
+
 uint8_t i2c_get_read_valid(uint8_t ch){
   volatile I2C_Channel *channel = &( i2c_channels[ch] );
   return channel->read_valid;
