@@ -300,6 +300,14 @@ uint8_t get_last(){
   print(" seq end: ");
   printInt8(seq_end);
   print(NL);
+
+  print("Buff: |");
+  I2C_Channel *channel = &( i2c_channels[0] );
+  for(int loop = 0; loop < 4; loop++){
+    printHex(channel->received_data[loop]);
+    print("|");
+  }
+  print(NL);
   return last_data;
 }
 
@@ -417,7 +425,7 @@ void i2c_isr( uint8_t ch )
 
   if ( channel->txrx == I2C_READING )
   {
-
+    read_seqs++;
     switch( channel->reads_ahead )
     {
     // All the reads in the sequence have been processed ( but note that the final data register read still needs to
@@ -428,7 +436,8 @@ void i2c_isr( uint8_t ch )
       *I2C_C1 |= I2C_C1_TX;
 
       // Perform the final data register read now that it's safe to do so.
-      *channel->received_data++ = *I2C_D;
+      *channel->received_data++ = last_data;
+
 
       // Do we have a repeated start?
       if ( ( channel->sequence < channel->sequence_end ) && ( *channel->sequence == I2C_RESTART ) )
@@ -455,6 +464,8 @@ void i2c_isr( uint8_t ch )
       // do not ACK the final read
       *I2C_C1 |= I2C_C1_TXAK;
       *channel->received_data++ = *I2C_D;
+        last_data = *I2C_D;
+        data_read++;
       break;
 
     default:
@@ -508,6 +519,7 @@ void i2c_isr( uint8_t ch )
           ( *( channel->sequence + channel->reads_ahead ) == I2C_READ )
         ) {
           channel->reads_ahead++;
+          last_reads_ahead = channel->reads_ahead;
         }
 
         // Switch to RX mode.
@@ -528,7 +540,8 @@ void i2c_isr( uint8_t ch )
         // This only triggers a read, actual data will come in the next interrupt call and overwrite this.
         // This is why we do not increment the received_data pointer.
         *channel->received_data = *I2C_D;
-        channel->reads_ahead--;
+        //last_data = *I2C_D;
+        //channel->reads_ahead--;
       }
       // Not a restart, not a read, must be a write.
       else

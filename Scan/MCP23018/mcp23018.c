@@ -264,15 +264,16 @@ void Mcp_read_pins()
       while(i2c_read(0, readData, 6, &rcv) == -1){
           //get_last();
           //dbug_msg("Read Channel is busy\n");
-          delayMicroseconds( 10 );
+          delayMicroseconds( 100 );
           //i2c_reset();
           break;
         }
 
+      delayMicroseconds( 600 );
       //printHex(GetDataFromBus());
-      get_last();
+      //get_last();
       print("|");
-      for(int loop = 0; loop < 3; loop++){
+      for(int loop = 0; loop < 4; loop++){
         printHex(rcv[loop]);
           //printHex(rcv_byte);
         print("|");
