@@ -261,9 +261,11 @@ void Mcp_read_pins()
 
       delayMicroseconds( 100 );
       dbug_msg("Reading data \n");
-      while(i2c_read(0, readDataSeq, 2, &rcv_byte) == -1){
+      while(i2c_read(0, readDataSeq, 4, &rcv_byte) == -1){
+          get_last();
           //dbug_msg("Read Channel is busy\n");
-          delayMicroseconds( 30 );
+          delayMicroseconds( 100000 );
+          i2c_reset();
           break;
         }
 

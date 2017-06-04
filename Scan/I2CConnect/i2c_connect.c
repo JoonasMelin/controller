@@ -96,6 +96,9 @@ uint8_t last_data = 3;
 uint8_t data_read = 0;
 uint8_t read_seqs = 0;
 uint8_t write_seqs = 0;
+uint8_t last_reads_ahead = 0;
+uint8_t read_attempsts = 0;
+uint8_t seq_end = 0;
 
 int32_t abs(int32_t val){
   if(val < 0){
@@ -283,7 +286,8 @@ uint8_t i2c_any_busy()
 }
 
 uint8_t get_last(){
-  dbug_print("Last byte: ");
+  dbug_print("Debug ");
+  print("Last byte: ");
   printHex(last_data);
   print(" Bytes read: ");
   printInt8(data_read);
@@ -291,6 +295,10 @@ uint8_t get_last(){
   printInt8(read_seqs);
   print(" Write seq done: ");
   printInt8(write_seqs);
+  print(" reads ahead: ");
+  printInt8(last_reads_ahead);
+  print(" seq end: ");
+  printInt8(seq_end);
   print(NL);
   return last_data;
 }
@@ -408,6 +416,7 @@ void i2c_isr( uint8_t ch )
 
   if ( channel->txrx == I2C_READING )
   {
+      last_reads_ahead = channel->reads_ahead;
     switch( channel->reads_ahead )
     {
     // All the reads in the sequence have been processed ( but note that the final data register read still needs to
@@ -448,6 +457,7 @@ void i2c_isr( uint8_t ch )
       last_data = *I2C_D;
       *channel->received_data++ = last_data;
       data_read++;
+
       break;
 
     default:
@@ -463,7 +473,7 @@ void i2c_isr( uint8_t ch )
   // channel->txrx == I2C_WRITING
   else
   {
-
+    write_seqs++;
     // First, check if we are at the end of a sequence.
     if ( channel->sequence == channel->sequence_end )
       goto i2c_isr_stop;
@@ -492,11 +502,10 @@ void i2c_isr( uint8_t ch )
       // Note that the only thing that can come after a restart is a write.
       *I2C_D = element;
     }
-    if(*channel->sequence == I2C_READ){
-        write_seqs++;
-      }
+
     if ( element == I2C_READ ) {
       read_seqs++;
+      seq_end =  channel->sequence_end - channel->sequence;
       channel->txrx = I2C_READING;
       // How many reads do we have ahead of us ( not including this one )?
       // For reads we need to know the segment length to correctly plan NACK transmissions.
@@ -507,11 +516,13 @@ void i2c_isr( uint8_t ch )
         ( *( channel->sequence + channel->reads_ahead ) == I2C_READ )
       ) {
         channel->reads_ahead++;
+        last_reads_ahead = channel->reads_ahead;
       }
 
       // Switch to RX mode.
-      //*I2C_C1 &= ~I2C_C1_TX; // OLD
-      *I2C_C1 = I2C_C1_MST | I2C_C1_TXAK;
+      *I2C_C1 &= ~I2C_C1_TX; // OLD
+      //*I2C_C1 &= !I2C_C1_TX;
+      //*I2C_C1 = I2C_C1_IICEN | I2C_C1_MST | I2C_C1_TXAK;
 
       // do not ACK the final read
       if ( channel->reads_ahead == 1 )
@@ -521,17 +532,17 @@ void i2c_isr( uint8_t ch )
       // ACK all but the final read
       else
       {
-        //*I2C_C1 &= ~( I2C_C1_TXAK ); // OLD
-        *I2C_C1 = I2C_C1_MST | I2C_C1_TXAK;
+        *I2C_C1 &= ~( I2C_C1_TXAK ); // OLD
+        //*I2C_C1 = I2C_C1_MST | I2C_C1_TXAK;
       }
 
       // Dummy read comes first, note that this is not valid data!
       // This only triggers a read, actual data will come in the next interrupt call and overwrite this.
       // This is why we do not increment the received_data pointer.
-      dbug_msg("Dummy read!");
+      //dbug_msg("Dummy read!");
       *channel->received_data = *I2C_D;
       channel->reads_ahead--;
-      *I2C_C1 &= ~( I2C_C1_TXAK ); //TODO
+      //*I2C_C1 &= ~( I2C_C1_TXAK ); //TODO
     }
 
      // Not a restart, not a read, must be a write.
@@ -541,7 +552,6 @@ void i2c_isr( uint8_t ch )
     }
 
   }
-
 
   channel->sequence++;
 
