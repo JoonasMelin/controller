@@ -92,13 +92,6 @@
 // ----- Variables -----
 
 volatile I2C_Channel i2c_channels[ISSI_I2C_Buses_define];
-uint8_t last_data = 3;
-uint8_t data_read = 0;
-uint8_t read_seqs = 0;
-uint8_t write_seqs = 0;
-uint8_t last_reads_ahead = 0;
-uint8_t read_attempsts = 0;
-uint8_t seq_end = 0;
 
 int32_t abs(int32_t val){
   if(val < 0){
@@ -285,31 +278,6 @@ uint8_t i2c_any_busy()
   return 0;
 }
 
-uint8_t get_last(){
-  dbug_print("Debug ");
-  print("Last byte: ");
-  printHex(last_data);
-  print(" Bytes read: ");
-  printInt8(data_read);
-  print(" Read seq done: ");
-  printInt8(read_seqs);
-  print(" Write seq done: ");
-  printInt8(write_seqs);
-  print(" reads ahead: ");
-  printInt8(last_reads_ahead);
-  print(" seq end: ");
-  printInt8(seq_end);
-  print(NL);
-
-  print("Buff: |");
-  I2C_Channel *channel = &( i2c_channels[0] );
-  for(int loop = 0; loop < 4; loop++){
-    printHex(channel->received_data[loop]);
-    print("|");
-  }
-  print(NL);
-  return last_data;
-}
 uint8_t i2c_get_read_valid(uint8_t ch){
   volatile I2C_Channel *channel = &( i2c_channels[ch] );
   return channel->read_valid;
@@ -421,7 +389,6 @@ void i2c_isr( uint8_t ch )
 
   if ( channel->txrx == I2C_READING )
   {
-    read_seqs++;
     switch( channel->reads_ahead )
     {
     // All the reads in the sequence have been processed ( but note that the final data register read still needs to
@@ -432,7 +399,7 @@ void i2c_isr( uint8_t ch )
       *I2C_C1 |= I2C_C1_TX;
 
       // Perform the final data register read now that it's safe to do so.
-      *channel->received_data++ = last_data;
+      *channel->received_data++ = *I2C_D;
 
       channel->read_valid = I2C_READ_VALID;
       // Do we have a repeated start?
@@ -460,7 +427,6 @@ void i2c_isr( uint8_t ch )
       // do not ACK the final read
       *I2C_C1 |= I2C_C1_TXAK;
       *channel->received_data++ = *I2C_D;
-        data_read++;
       break;
 
     default:
@@ -514,7 +480,6 @@ void i2c_isr( uint8_t ch )
           ( *( channel->sequence + channel->reads_ahead ) == I2C_READ )
         ) {
           channel->reads_ahead++;
-          last_reads_ahead = channel->reads_ahead;
         }
 
         // Switch to RX mode.

@@ -28,13 +28,10 @@ int loopNo = 0;
 
 // [1] http://ww1.microchip.com/downloads/en/DeviceDoc/22103a.pdf
 
+#define I2C_TIMEOUT_US 500
+
 // I2C address A2 A1 A0 are 000 in ergodox
-// 0 1 0 0 A2 A1 A0 RW  from [1] section 1.4.2 Figure 1.6
-// 0 1 0 0 is always the same for all MCP23018
-// A2 A1 A0 are set to 0 by bringin the ADDR pin to low (hard wired)
-// R = 1 / W = 0
-#define TWI_MCP23018_CONTROLBYTEREAD  0b01000001 // 0 1 0 0 A2 A1 A0 RW  from [1] section 1.4.2 Figure 1.6
-#define TWI_MCP23018_CONTROLBYTEWRITE 0b01000000 // 0 1 0 0 A2 A1 A0 RW  from [1] section 1.4.2 Figure 1.6
+
 
 #define IODIRA 0x00 // From [1] Read Table 1-1 and 1.6.1 I/O DIRECTION REGISTER (page 18)
 #define IODIRB 0x01 // From [1] Read Table 1-1 and 1.6.1 I/O DIRECTION REGISTER (page 18)
@@ -50,156 +47,41 @@ int loopNo = 0;
 // MCP23018 registers
 
 
-/*void MCP23018::writeToRegister(uint8_t address, uint8_t data)
-{
-        Wire.beginTransmission(i2c_address);
-        Wire.send(address);
-        Wire.send(data);
-        Wire.endTransmission();
 
-        readFromRegister(address);
-}
-
-void MCP23018::writePairToRegister(uint8_t address, uint8_t first_data, uint8_t second_data)
-{
-        Wire.beginTransmission(i2c_address);
-        Wire.send(address);
-        Wire.send(first_data);
-        Wire.send(second_data);
-        Wire.endTransmission();
-
-        readFromRegister(address);
-}
-
-uint8_t MCP23018::readFromRegister(uint8_t address)
-{
-        uint8_t received_data = 0;
-
-        // Establish connection, select receipt address
-        Wire.beginTransmission(i2c_address);
-        Wire.send(address);
-        Wire.endTransmission();
-
-        // Request one data byte
-        Wire.requestFrom(i2c_address, (uint8_t)1);
-
-
-        // Fill variables when ready
-        if(Wire.available())
-        {
-                received_data = Wire.receive();
-}
-
-
-        return received_data;
-}
-
-void MCP23018::setBitInRegister(const uint8_t address_bit[], bool bitState)
-{
-        uint8_t temp;
-        uint8_t address = address_bit[0];
-        uint8_t bit = address_bit[1];
-
-        // Use bitState to decide which masking to use (to 1 or to 0)
-        if(bitState)
-                temp = readFromRegister(address) | (1 << bit);
-        else
-                temp = readFromRegister(address) & ~(1 << bit);
-
-        writeToRegister(address, temp);
-}
-
-void MCP23018::setBitGroupInRegister(const uint8_t address, const uint8_t data, const uint8_t mask)
-{
-#ifdef DEBUG
-    Serial.print("()setBitGroupInRegister(");
-    Serial.print(address,HEX);
-    Serial.print(",");
-    Serial.print(data,HEX);
-    Serial.print(",");
-    Serial.print(mask,HEX);
-    Serial.println(")");
-#endif
-
-        uint8_t temp = readFromRegister(address) & ( mask ^ 0xff) | ( data & mask );
-        writeToRegister(address, temp);
-}
-
-MCP23018::MCP23018(uint8_t _address)
-{
-        i2c_address = ( _address & B111 ) | I2C_MCP23018;
-}
-
-void MCP23018::begin(void)
-{
-        // Set all pins to outputs
-        writePairToRegister(IODIRA,0,0);
-}
-
-void MCP23018::SetPullups(uint8_t _a, uint8_t _b)
-{
-        writePairToRegister(GPPUA,_a,_b);
-}
-
-void MCP23018::SetPortA(uint8_t _data)
-{
-        writeToRegister(GPIOA,_data);
-}
-
-void MCP23018::SetPortB(uint8_t _data)
-{
-        writeToRegister(GPIOB,_data);
-}
-
-void MCP23018::SetPorts(uint8_t _a, uint8_t _b)
-{
-        writePairToRegister(GPIOA,_a,_b);
-}
-
-uint8_t MCP23018::GetPortA(void)
-{
-        return readFromRegister(GPIOA);
-}
-
-uint8_t MCP23018::GetPortB(void)
-{
-        return readFromRegister(GPIOB);
-}
-
-uint8_t MCP23018::GetLatchPortA(void)
-{
-        return readFromRegister(OLATA);
-}
-
-uint8_t MCP23018::GetLatchPortB(void)
-{
-        return readFromRegister(OLATB);
-}
-
-void MCP23018::SetPortB_bits(uint8_t _data, uint8_t _mask)
-{
-        setBitGroupInRegister(OLATB,_data,_mask);
-}*/
 
 void Mcp_setup()
 {
     i2c_setup();
-    //LED_setup();
-    //Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
-    /*pinMode(LED_BUILTIN,OUTPUT);    // LED
-    digitalWrite(LED_BUILTIN,LOW);  // LED off
-    pinMode(12,INPUT_PULLUP);       // Control for Send
-    pinMode(11,INPUT_PULLUP);       // Control for Receive
 
-    // Setup for Master mode, pins 18/19, external pullups, 400kHz, 200ms default timeout
-    Wire.begin(I2C_MASTER, 0x00, I2C_PINS_18_19, I2C_PULLUP_EXT, 400000);
-    Wire.setDefaultTimeout(200000); // 200ms
+}
 
-    // Data init
-    memset(databuf, 0, sizeof(databuf));
-    count = 0;
+void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
+  // The sequence that defines what is going to be done
+  // Send address, send the register to be read, repeated start, address with
+  // write bit, request data byte
+  uint16_t read_data_sequence[] = { (address), register_addr,
+                          I2C_RESTART, (address | 0x1), I2C_READ};
+  uint8_t wait_step_us = 20;
 
-    Serial.begin(115200);*/
+  uint16_t wait_loops_done = 0;
+  while((i2c_read(0, read_data_sequence, 5, &data) == -1) ||
+        (i2c_get_read_valid(0) == I2C_READ_INVALID)){
+
+      // Checking if things are not progressing as they should
+      if(wait_loops_done * wait_step_us < I2C_TIMEOUT_US){
+          warn_print("I2C timeout, resetting the bus.");
+          i2c_reset();
+          break;
+        }
+
+      delayMicroseconds(wait_step_us);
+      wait_loops_done++;
+  }
+
+}
+
+void Mcp_write_register(){
+
 }
 
 void Mcp_read_pins()
