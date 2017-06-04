@@ -261,20 +261,20 @@ void Mcp_read_pins()
 
       delayMicroseconds( 100 );
       dbug_msg("Reading data \n");
-      while(i2c_read(0, readDataSeq, 4, &rcv_byte) == -1){
+      while(i2c_read(0, readDataSeq, 4, &rcv) == -1){
           get_last();
           //dbug_msg("Read Channel is busy\n");
-          delayMicroseconds( 100000 );
-          i2c_reset();
+          //delayMicroseconds( 100000 );
+          //i2c_reset();
           break;
         }
 
       //printHex(GetDataFromBus());
       get_last();
       print("|");
-      for(int loop = 0; loop < 1; loop++){
-        //printHex(rcv[loop]);
-          printHex(rcv_byte);
+      for(int loop = 0; loop < 3; loop++){
+        printHex(rcv[loop]);
+          //printHex(rcv_byte);
         print("|");
       }
       print(NL);

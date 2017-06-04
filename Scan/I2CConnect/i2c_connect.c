@@ -405,18 +405,19 @@ void i2c_isr( uint8_t ch )
   *I2C_S |= I2C_S_IICIF;
 
   // Arbitration problem
-  /*if ( status & I2C_S_ARBL )
+  if ( status & I2C_S_ARBL )
   {
-    warn_msg("Arbitration error");
+    warn_msg("Arbitration error. Bus: ");
+    printHex( ch );
     print(NL);
 
     *I2C_S |= I2C_S_ARBL;
     goto i2c_isr_error;
-  }*/
+  }
 
   if ( channel->txrx == I2C_READING )
   {
-      last_reads_ahead = channel->reads_ahead;
+
     switch( channel->reads_ahead )
     {
     // All the reads in the sequence have been processed ( but note that the final data register read still needs to
@@ -428,7 +429,6 @@ void i2c_isr( uint8_t ch )
 
       // Perform the final data register read now that it's safe to do so.
       *channel->received_data++ = *I2C_D;
-      data_read++;
 
       // Do we have a repeated start?
       if ( ( channel->sequence < channel->sequence_end ) && ( *channel->sequence == I2C_RESTART ) )
@@ -454,16 +454,11 @@ void i2c_isr( uint8_t ch )
     case 1:
       // do not ACK the final read
       *I2C_C1 |= I2C_C1_TXAK;
-      last_data = *I2C_D;
-      *channel->received_data++ = last_data;
-      data_read++;
-
+      *channel->received_data++ = *I2C_D;
       break;
 
     default:
-      last_data = *I2C_D;
-      *channel->received_data++ = last_data;
-      data_read++;
+      *channel->received_data++ = *I2C_D;
       break;
     }
 
@@ -473,7 +468,6 @@ void i2c_isr( uint8_t ch )
   // channel->txrx == I2C_WRITING
   else
   {
-    write_seqs++;
     // First, check if we are at the end of a sequence.
     if ( channel->sequence == channel->sequence_end )
       goto i2c_isr_stop;
@@ -482,9 +476,8 @@ void i2c_isr( uint8_t ch )
     if ( status & I2C_S_RXAK )
     {
       //warn_print("NACK Received");
-      //goto i2c_isr_error;
+      goto i2c_isr_error;
     }
-
 
     // check next thing in our sequence
     element = *channel->sequence;
@@ -502,60 +495,50 @@ void i2c_isr( uint8_t ch )
       // Note that the only thing that can come after a restart is a write.
       *I2C_D = element;
     }
-
-    if ( element == I2C_READ ) {
-      read_seqs++;
-      seq_end =  channel->sequence_end - channel->sequence;
-      channel->txrx = I2C_READING;
-      // How many reads do we have ahead of us ( not including this one )?
-      // For reads we need to know the segment length to correctly plan NACK transmissions.
-      // We already know about one read
-      channel->reads_ahead = 1;
-      while (
-        (  ( channel->sequence + channel->reads_ahead ) < channel->sequence_end ) &&
-        ( *( channel->sequence + channel->reads_ahead ) == I2C_READ )
-      ) {
-        channel->reads_ahead++;
-        last_reads_ahead = channel->reads_ahead;
-      }
-
-      // Switch to RX mode.
-      *I2C_C1 &= ~I2C_C1_TX; // OLD
-      //*I2C_C1 &= !I2C_C1_TX;
-      //*I2C_C1 = I2C_C1_IICEN | I2C_C1_MST | I2C_C1_TXAK;
-
-      // do not ACK the final read
-      if ( channel->reads_ahead == 1 )
-      {
-        *I2C_C1 |= I2C_C1_TXAK;
-      }
-      // ACK all but the final read
-      else
-      {
-        *I2C_C1 &= ~( I2C_C1_TXAK ); // OLD
-        //*I2C_C1 = I2C_C1_MST | I2C_C1_TXAK;
-      }
-
-      // Dummy read comes first, note that this is not valid data!
-      // This only triggers a read, actual data will come in the next interrupt call and overwrite this.
-      // This is why we do not increment the received_data pointer.
-      //dbug_msg("Dummy read!");
-      *channel->received_data = *I2C_D;
-      channel->reads_ahead--;
-      //*I2C_C1 &= ~( I2C_C1_TXAK ); //TODO
-    }
-
-     // Not a restart, not a read, must be a write.
     else
     {
-      *I2C_D = element;
-    }
+      if ( element == I2C_READ ) {
+        channel->txrx = I2C_READING;
+        // How many reads do we have ahead of us ( not including this one )?
+        // For reads we need to know the segment length to correctly plan NACK transmissions.
+        // We already know about one read
+        channel->reads_ahead = 1;
+        while (
+          (  ( channel->sequence + channel->reads_ahead ) < channel->sequence_end ) &&
+          ( *( channel->sequence + channel->reads_ahead ) == I2C_READ )
+        ) {
+          channel->reads_ahead++;
+        }
 
+        // Switch to RX mode.
+        *I2C_C1 &= ~I2C_C1_TX;
+
+        // do not ACK the final read
+        if ( channel->reads_ahead == 1 )
+        {
+          *I2C_C1 |= I2C_C1_TXAK;
+        }
+        // ACK all but the final read
+        else
+        {
+          *I2C_C1 &= ~( I2C_C1_TXAK );
+        }
+
+        // Dummy read comes first, note that this is not valid data!
+        // This only triggers a read, actual data will come in the next interrupt call and overwrite this.
+        // This is why we do not increment the received_data pointer.
+        *channel->received_data = *I2C_D;
+        channel->reads_ahead--;
+      }
+      // Not a restart, not a read, must be a write.
+      else
+      {
+        *I2C_D = element;
+      }
+    }
   }
 
   channel->sequence++;
-
-
   return;
 
 i2c_isr_stop:
@@ -575,7 +558,7 @@ i2c_isr_stop:
 
 i2c_isr_error:
   // Generate STOP and disable further interrupts.
-  *I2C_C1 &= ~( I2C_C1_MST | I2C_C1_IICIE | I2C_C1_TX );
+  *I2C_C1 &= ~( I2C_C1_MST | I2C_C1_IICIE );
   channel->status = I2C_ERROR;
   return;
 }
