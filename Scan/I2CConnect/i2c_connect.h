@@ -38,6 +38,9 @@
 #define I2C_BUSY 1
 #define I2C_ERROR 2
 
+#define I2C_READ_VALID 1
+#define I2C_READ_INVALID 0
+
 
 #define I2C_RESTART 1<<8
 #define I2C_READ    2<<8
@@ -54,6 +57,7 @@ typedef struct {
   void *user_data;
   uint8_t reads_ahead;
   uint8_t status;
+  uint8_t read_valid;
   uint8_t txrx;
 } I2C_Channel;
 

@@ -310,6 +310,10 @@ uint8_t get_last(){
   print(NL);
   return last_data;
 }
+uint8_t i2c_get_read_valid(uint8_t ch){
+  volatile I2C_Channel *channel = &( i2c_channels[ch] );
+  return channel->read_valid;
+}
 
 // These are here for readability and correspond to bit 0 of the address byte.
 #define I2C_WRITING 0
@@ -365,6 +369,7 @@ int32_t i2c_send_sequence(
   channel->txrx = I2C_WRITING;
   channel->callback_fn = callback_fn;
   channel->user_data = user_data;
+  channel->read_valid = I2C_READ_INVALID;
 
   // reads_ahead does not need to be initialized
 
@@ -438,7 +443,7 @@ void i2c_isr( uint8_t ch )
       // Perform the final data register read now that it's safe to do so.
       *channel->received_data++ = last_data;
 
-
+      channel->read_valid = I2C_READ_VALID;
       // Do we have a repeated start?
       if ( ( channel->sequence < channel->sequence_end ) && ( *channel->sequence == I2C_RESTART ) )
       {
@@ -464,7 +469,6 @@ void i2c_isr( uint8_t ch )
       // do not ACK the final read
       *I2C_C1 |= I2C_C1_TXAK;
       *channel->received_data++ = *I2C_D;
-        last_data = *I2C_D;
         data_read++;
       break;
 
@@ -541,7 +545,9 @@ void i2c_isr( uint8_t ch )
         // This is why we do not increment the received_data pointer.
         *channel->received_data = *I2C_D;
         //last_data = *I2C_D;
-        //channel->reads_ahead--;
+        channel->reads_ahead--;
+
+        channel->read_valid = I2C_READ_INVALID;
       }
       // Not a restart, not a read, must be a write.
       else
