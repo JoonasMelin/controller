@@ -293,6 +293,11 @@ uint8_t i2c_get_read_valid(uint8_t ch){
   return channel->read_valid;
 }
 
+uint8_t get_isr_happened(){
+  volatile I2C_Channel *channel = &( i2c_channels[0] );
+  return channel->isr_happened;
+}
+
 // These are here for readability and correspond to bit 0 of the address byte.
 #define I2C_WRITING 0
 #define I2C_READING 1
@@ -339,6 +344,7 @@ int32_t i2c_send_sequence(
   channel->callback_fn = callback_fn;
   channel->user_data = user_data;
   channel->read_valid = I2C_READ_INVALID;
+  channel->isr_happened = 0;
 
   // reads_ahead does not need to be initialized
 
@@ -373,6 +379,7 @@ i2c_send_sequence_cleanup:
 void i2c_isr( uint8_t ch )
 {
   volatile I2C_Channel* channel = &i2c_channels[ch];
+  channel->isr_happened = 1;
 
   volatile uint8_t *I2C_C1  = (uint8_t*)(&I2C0_C1) + i2c_offset[ch];
   volatile uint8_t *I2C_S   = (uint8_t*)(&I2C0_S) + i2c_offset[ch];

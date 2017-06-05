@@ -59,6 +59,7 @@ typedef struct {
   uint8_t status;
   uint8_t read_valid;
   uint8_t txrx;
+  uint8_t isr_happened;
 } I2C_Channel;
 
 

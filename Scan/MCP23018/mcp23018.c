@@ -78,6 +78,19 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
       wait_loops_done++;
   }
 
+  /*while(get_isr_happened() == 0){
+
+    if((wait_loops_done * wait_step_us) > I2C_TIMEOUT_US){
+        print("X");
+        //i2c_reset();
+        i2c_cleanup();
+        return;
+      }
+
+      wait_loops_done++;
+      delayMicroseconds(wait_step_us);
+  }*/
+
   while((i2c_get_read_valid(I2C_BUS_NO) == I2C_READ_INVALID)){
       //dbug_print("Waiting2..");
       // Checking if things are not progressing as they should
@@ -86,7 +99,7 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
           //i2c_reset();
           //i2c_setup();
           i2c_cleanup();
-          print(".");
+          printInt8(get_isr_happened());
           break;
         }
 
@@ -128,7 +141,7 @@ void Mcp_read_pins()
   if(loopNo > 800){
       // Write register
       //dbug_msg("Sending.. \n");
-      //delayMicroseconds(500);
+      //delayMicroseconds(123);
       //while(i2c_send( 0, configInput, 3) == -1){
       //  delayMicroseconds( 100 );
       //}
