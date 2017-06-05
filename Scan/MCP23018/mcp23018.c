@@ -28,7 +28,7 @@ int loopNo = 0;
 
 // [1] http://ww1.microchip.com/downloads/en/DeviceDoc/22103a.pdf
 
-#define I2C_TIMEOUT_US 500
+#define I2C_TIMEOUT_US 150
 #define I2C_BUS_NO 0
 
 // I2C address A2 A1 A0 are 000 in ergodox
@@ -63,7 +63,7 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
   uint16_t read_data_sequence[] = { (address), register_addr,
                           I2C_RESTART, (address | 0x1), I2C_READ};
 
-  uint8_t wait_step_us = 5;
+  uint8_t wait_step_us = 2;
 
   uint16_t wait_loops_done = 0;
   while(i2c_read(I2C_BUS_NO, read_data_sequence, 5, data) == -1){
@@ -86,6 +86,7 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
           //i2c_reset();
           //i2c_setup();
           i2c_cleanup();
+          print(".");
           break;
         }
 
@@ -101,10 +102,11 @@ void Mcp_write_register(){
 
 void Mcp_read_pins()
 {
-  delayMicroseconds( 10 );
+  //delayMicroseconds( 10 );
   loopNo++;
   uint16_t addr = (0x20 << 1);
-  uint16_t reg = 0x00;
+  uint8_t rcv[] = {2, 3, 4, 5, 1, 1 , 1, 1, 1, 1, 1, 1, 1};
+  /*uint16_t reg = 0x00;
   uint16_t val = 0xFF;
   uint16_t configInput[] = { addr, 0x00, val };
   uint16_t configInput2[] = { addr, 0x12, val };
@@ -115,8 +117,8 @@ void Mcp_read_pins()
   uint16_t writeLedOn[] = { addr, 0x13, 0xFF };
   uint16_t writeLedOff[] = { addr, 0x13, 0x00 };
   uint16_t configLed[] = { addr, 0x01, 0x00 };
-  uint8_t rcv[] = {2, 3, 4, 5, 1, 1 , 1, 1, 1, 1, 1, 1, 1};
-  uint8_t rcv_byte = 2;
+
+  uint8_t rcv_byte = 2;*/
 
   // Setup page
 
@@ -156,7 +158,7 @@ void Mcp_read_pins()
           //dbug_msg("Write Channel is busy\n");
           delayMicroseconds( 100 );
         }*/
-print("|");
+      print("|");
       Mcp_read_register(addr, 0x12, &rcv);
 
       if(i2c_get_read_valid(0)){
@@ -171,7 +173,7 @@ print("|");
 
       }
 
-      delayMicroseconds( 7);
+      //delayMicroseconds( 7);
 
 }
   else{

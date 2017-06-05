@@ -458,7 +458,7 @@ void i2c_isr( uint8_t ch )
     if ( status & I2C_S_RXAK )
     {
       //warn_print("NACK Received");
-      goto i2c_isr_error;
+      //goto i2c_isr_error;
     }
 
     // check next thing in our sequence
