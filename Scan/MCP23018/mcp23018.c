@@ -28,7 +28,7 @@ int loopNo = 0;
 
 // [1] http://ww1.microchip.com/downloads/en/DeviceDoc/22103a.pdf
 
-#define I2C_TIMEOUT_US 6000
+#define I2C_TIMEOUT_US 500
 #define I2C_BUS_NO 0
 
 // I2C address A2 A1 A0 are 000 in ergodox
@@ -63,7 +63,7 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
   uint16_t read_data_sequence[] = { (address), register_addr,
                           I2C_RESTART, (address | 0x1), I2C_READ};
 
-  uint8_t wait_step_us = 200;
+  uint8_t wait_step_us = 5;
 
   uint16_t wait_loops_done = 0;
   while(i2c_read(I2C_BUS_NO, read_data_sequence, 5, data) == -1){
@@ -159,16 +159,19 @@ void Mcp_read_pins()
 print("|");
       Mcp_read_register(addr, 0x12, &rcv);
 
-      print("|");
-      for(int loop = 0; loop < 4 && i2c_get_read_valid(0); loop++){
-        printHex(rcv[loop]);
-          //printHex(rcv_byte);
+      if(i2c_get_read_valid(0)){
         print("|");
-      }
-      printInt8(i2c_get_read_valid(0));
-      print(NL);
+        for(int loop = 0; loop < 4; loop++){
+          printHex(rcv[loop]);
+            //printHex(rcv_byte);
+          print("|");
+        }
+        printInt8(i2c_get_read_valid(0));
+        print(NL);
 
-      delayMicroseconds( 700);
+      }
+
+      delayMicroseconds( 7);
 
 }
   else{
