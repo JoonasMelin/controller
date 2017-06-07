@@ -223,15 +223,18 @@ void i2c_setup()
 
     // FIXME Forcing settings
     *I2C_F = 0x85;
-    *I2C_FLT = 0x04;
-    *I2C_C1 = 0x80;
-    *I2C_C2 = 0x20;
+    //*I2C_F = 0x40;
+    *I2C_FLT = 0x02;
+    //*I2C_C1 = 0x80;
+    //*I2C_C2 = 0x20;
 
     switch ( ch )
     {
     case 0:
       // Enable I2C Interrupt
+      NVIC_SET_PRIORITY( IRQ_I2C0, 64 );
       NVIC_ENABLE_IRQ( IRQ_I2C0 );
+
       break;
 
 #if defined(_mk20dx256_) || defined(_mk20dx256vlh7_)
@@ -334,7 +337,7 @@ int32_t i2c_send_sequence(
       print(" ");
   }
   print(NL);*/
-
+  //dbug_msg("");
 
   channel->sequence = sequence;
   channel->sequence_end = sequence + sequence_length;

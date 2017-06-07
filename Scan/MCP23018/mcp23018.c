@@ -99,7 +99,7 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
           //i2c_reset();
           //i2c_setup();
           i2c_cleanup();
-          printInt8(get_isr_happened());
+          //printInt8(get_isr_happened());
           break;
         }
 
@@ -171,10 +171,10 @@ void Mcp_read_pins()
           //dbug_msg("Write Channel is busy\n");
           delayMicroseconds( 100 );
         }*/
-      print("|");
+      //print("|");
       Mcp_read_register(addr, 0x12, &rcv);
 
-      if(i2c_get_read_valid(0)){
+      /*if(i2c_get_read_valid(0)){
         print("|");
         for(int loop = 0; loop < 4; loop++){
           printHex(rcv[loop]);
@@ -184,7 +184,7 @@ void Mcp_read_pins()
         printInt8(i2c_get_read_valid(0));
         print(NL);
 
-      }
+      }*/
 
       //delayMicroseconds( 7);
 
