@@ -45,6 +45,9 @@
 #define I2C_RESTART 1<<8
 #define I2C_READ    2<<8
 
+#define I2C_BLOCKING 0
+#define I2C_ISR 1
+
 #define ISSI_Chip_31FL3731_define 1
 
 // ----- Structs -----
@@ -60,6 +63,7 @@ typedef struct {
   uint8_t read_valid;
   uint8_t txrx;
   uint8_t isr_happened;
+  uint8_t method;
 } I2C_Channel;
 
 
