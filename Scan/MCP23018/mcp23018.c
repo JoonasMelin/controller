@@ -66,17 +66,7 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
   uint8_t wait_step_us = 2;
 
   uint16_t wait_loops_done = 0;
-  while(i2c_read(I2C_BUS_NO, read_data_sequence, 5, data) == -1){
-      // Checking if things are not progressing as they should
-      if((wait_loops_done * wait_step_us) > I2C_TIMEOUT_US){
-          warn_print("I2C data request timeout, resetting the bus.");
-          //i2c_reset();
-          break;
-        }
-
-      delayMicroseconds(wait_step_us);
-      wait_loops_done++;
-  }
+  i2c_read(I2C_BUS_NO, read_data_sequence, 5, data);
 
   /*while(get_isr_happened() == 0){
 
@@ -176,7 +166,7 @@ void Mcp_read_pins()
 
       if(i2c_get_read_valid(0)){
         print("|");
-        for(int loop = 0; loop < 4; loop++){
+        for(int loop = 0; loop < 1; loop++){
           printHex(rcv[loop]);
             //printHex(rcv_byte);
           print("|");

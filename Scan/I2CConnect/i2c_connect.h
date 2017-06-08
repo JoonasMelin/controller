@@ -47,6 +47,9 @@
 
 #define I2C_BLOCKING 0
 #define I2C_ISR 1
+#define I2C_POLLING 2
+
+#define I2C_BLOCKING_TIMEOUT_US 300
 
 #define ISSI_Chip_31FL3731_define 1
 
