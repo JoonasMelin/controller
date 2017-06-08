@@ -353,7 +353,7 @@ int32_t i2c_send_sequence(
       print(" ");
   }
   print(NL);*/
-  //dbug_msg("");
+
 
   channel->sequence = sequence;
   channel->sequence_end = sequence + sequence_length;

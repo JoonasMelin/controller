@@ -63,43 +63,16 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
   uint16_t read_data_sequence[] = { (address), register_addr,
                           I2C_RESTART, (address | 0x1), I2C_READ};
 
-  uint8_t wait_step_us = 2;
 
   uint16_t wait_loops_done = 0;
   i2c_read(I2C_BUS_NO, read_data_sequence, 5, data);
 
-  /*while(get_isr_happened() == 0){
-
-    if((wait_loops_done * wait_step_us) > I2C_TIMEOUT_US){
-        print("X");
-        //i2c_reset();
-        i2c_cleanup();
-        return;
-      }
-
-      wait_loops_done++;
-      delayMicroseconds(wait_step_us);
-  }*/
-
-  while((i2c_get_read_valid(I2C_BUS_NO) == I2C_READ_INVALID)){
-      //dbug_print("Waiting2..");
-      // Checking if things are not progressing as they should
-      if((wait_loops_done * wait_step_us) > I2C_TIMEOUT_US){
-          //warn_print("I2C receive timeout, resetting the bus.");
-          //i2c_reset();
-          //i2c_setup();
-          i2c_cleanup();
-          //printInt8(get_isr_happened());
-          break;
-        }
-
-      delayMicroseconds(wait_step_us);
-      wait_loops_done++;
-    }
-
 }
 
-void Mcp_write_register(){
+void Mcp_write_register(uint16_t address, uint16_t register_addr, uint8_t data){
+  uint16_t write_data_sequence[] = { (address), register_addr, data};
+
+  i2c_send(I2C_BUS_NO, write_data_sequence, 3);
 
 }
 
@@ -161,6 +134,10 @@ void Mcp_read_pins()
           //dbug_msg("Write Channel is busy\n");
           delayMicroseconds( 100 );
         }*/
+    Mcp_write_register(addr, 0x00, 0xff);
+    Mcp_write_register(addr, 0x01, 0x00);
+    Mcp_write_register(addr, 0x13, 0x00);
+
       print("|");
       Mcp_read_register(addr, 0x12, &rcv);
 
@@ -175,6 +152,7 @@ void Mcp_read_pins()
         print(NL);
 
       }
+      Mcp_write_register(addr, 0x01, 0xff);
 
       //delayMicroseconds( 7);
 
