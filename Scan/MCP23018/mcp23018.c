@@ -135,32 +135,33 @@ void Mcp_read_register(uint16_t address, uint16_t register_addr, uint8_t *data){
   // The sequence that defines what is going to be done
   // Send address, send the register to be read, repeated start, address with
   // write bit, request data byte
-  uint16_t read_data_sequence[] = { (address), register_addr,
-                          I2C_RESTART, (address | 0x1), I2C_READ};
+  uint16_t address_7bit = (address << 1);
+  uint16_t read_data_sequence[] = { address_7bit, register_addr,
+                          I2C_RESTART, (address_7bit | 0x1), I2C_READ};
 
 
   uint16_t wait_loops_done = 0;
   i2c_read(I2C_BUS_NO, read_data_sequence, 5, data);
-
 }
 
 void Mcp_write_register(uint16_t address, uint16_t register_addr, uint8_t data){
-  uint16_t write_data_sequence[] = { (address), register_addr, data};
+  uint16_t address_7bit = (address << 1);
+  uint16_t write_data_sequence[] = { address_7bit, register_addr, data};
 
   i2c_send(I2C_BUS_NO, write_data_sequence, 3);
 
 }
 
 uint8_t Mcp_read_port(McpPort port){
-  uint8_t data = 0;
+  uint8_t data[] = {0};
   switch(port)
   {
     case McpPort_A:
       Mcp_read_register(MCP_ADDR, GPIOA, &data);
-      return data;
+      return data[0];
     case McpPort_B:
       Mcp_read_register(MCP_ADDR, GPIOB, &data);
-      return data;
+      return data[0];
     default:
       warn_msg("Attempting to read unknown port");
       return 0;
@@ -279,6 +280,11 @@ void Mcp_scan( uint16_t scanNum )
     Mcp_strobe_pin(McpStrobePort, Mcp_cols[ strobe ], OpenDrain);
     uint8_t pin_register = Mcp_read_port(McpSensePort);
 
+    /*dbug_msg("Pin register: ");
+    printHex(pin_register);
+    print(NL);
+    delayMicroseconds(100);*/
+
     // Scan each of the sense pins
     for ( uint8_t sense = 0; sense < Mcp_rowsNum; sense++ )
     {
@@ -293,6 +299,7 @@ void Mcp_scan( uint16_t scanNum )
         state->prevState = state->curState;
         state->curState  = McpKeyState_Invalid;
       }
+      //dbug_msg("Reading key\n");
 
       // Signal Detected
       // Inverting the input register as we are detecting the lack of voltage
@@ -304,6 +311,8 @@ void Mcp_scan( uint16_t scanNum )
       // State still needs to be kept track of to deal with what to send to the Macro module
       if ( !pin_register & (1 << Mcp_rows[ sense ]) )
       {
+        //dbug_msg("Detected key!\n");
+
         // Only update if not going to wrap around
         if ( state->activeCount < DebounceDivThreshold_define ) state->activeCount += 1;
         state->inactiveCount >>= 1;
