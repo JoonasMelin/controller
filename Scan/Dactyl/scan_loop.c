@@ -58,6 +58,7 @@ CLIDict_Def( scanCLIDict, "Scan Module Commands" ) = {
 
 // Number of scans since the last USB send
 uint16_t Scan_scanCount = 0;
+uint16_t Mcp_scanCount = 0;
 
 
 
@@ -77,6 +78,7 @@ inline void Scan_setup()
 
 	// Reset scan count
 	Scan_scanCount = 0;
+  Mcp_scanCount = 0;
 }
 
 
@@ -84,7 +86,7 @@ inline void Scan_setup()
 inline uint8_t Scan_loop()
 {
 	Matrix_scan( Scan_scanCount++ );
-  Mcp_read_pins();
+  Mcp_scan( Mcp_scanCount++ );
 	return 0;
 }
 
@@ -101,6 +103,7 @@ inline void Scan_finishedWithOutput( uint8_t sentKeys )
 	// Reset scan loop indicator (resets each key debounce state)
 	// TODO should this occur after USB send or Macro processing?
 	Scan_scanCount = 0;
+  Mcp_scanCount = 0;
 }
 
 

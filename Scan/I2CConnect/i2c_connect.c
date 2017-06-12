@@ -319,11 +319,40 @@ int32_t i2c_send_sequence(
   volatile I2C_Channel *channel = &( i2c_channels[ch] );
 
   volatile uint8_t *I2C_C1  = (uint8_t*)(&I2C0_C1) + i2c_offset[ch];
+  volatile uint8_t *I2C_C2  = (uint8_t*)(&I2C0_C2) + i2c_offset[ch];
   volatile uint8_t *I2C_S   = (uint8_t*)(&I2C0_S) + i2c_offset[ch];
   volatile uint8_t *I2C_D   = (uint8_t*)(&I2C0_D) + i2c_offset[ch];
 
   int32_t result = 0;
   uint8_t status;
+
+  if(channel->status == I2C_ERROR){
+    warn_msg("Bus is in error state!");
+    print(NL);
+    *I2C_C1 &= ~( I2C_C1_MST | I2C_C1_IICIE | I2C_C1_TXAK );
+    //*I2C_C2 = I2C_C2_HDRS;
+    *I2C_S =  I2C_S_IICIF | I2C_S_ARBL;
+
+
+    GPIOB_PSOR = (1<<1);
+    GPIOB_PSOR = (1<<0);
+    delayMicroseconds(5);
+    GPIOB_PSOR = (0<<0);
+    GPIOB_PSOR = (0<<1);
+
+
+    GPIOC_PSOR = (0<<5);
+    delayMicroseconds(5000);
+
+
+    *I2C_C1 = 0x00;
+
+    delayMicroseconds(5);
+    *I2C_C1 = I2C_C1_IICEN;
+    //i2c_reset();
+    channel->status = I2C_AVAILABLE;
+    return result;
+  }
 
   if ( channel->status == I2C_BUSY )
   {
@@ -598,6 +627,7 @@ i2c_isr_error:
   // Generate STOP and disable further interrupts.
   *I2C_C1 &= ~( I2C_C1_MST | I2C_C1_IICIE );
   channel->status = I2C_ERROR;
+
   return;
 }
 
